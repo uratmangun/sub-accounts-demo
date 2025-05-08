@@ -169,7 +169,7 @@ function App() {
           
           const tx = await writeContractAsync({
             ...restOfContractCallParams,
-     
+            gas: BigInt(213000),
           });
           const res2 = await fetch('/api/create-data', {
             method: 'POST',
@@ -783,7 +783,7 @@ const handleLoadMoreZoraBalances = async () => {
                   </button>
                   {coinCheckMessage && (
                     <div className="mt-2 p-2 border border-info rounded-md bg-info/10">
-                      <p className="text-sm text-info-content whitespace-pre-wrap">{coinCheckMessage}</p>
+                      <p className="text-sm text-white whitespace-pre-wrap">{coinCheckMessage}</p>
                     </div>
                   )}
                 </div>
