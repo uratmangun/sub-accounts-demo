@@ -32,6 +32,9 @@ function App() {
   const [createLoading, setCreateLoading] = useState<boolean>(false);
   const [transactionInput, setTransactionInput] = useState<`0x${string}` | ''>('');
   const [coinCheckMessage, setCoinCheckMessage] = useState<string | null>(null);
+  const [coinCheckAddressInput, setCoinCheckAddressInput] = useState<string>('');
+  const [coinCheckResult, setCoinCheckResult] = useState<any | null>(null);
+  const [isCheckingCoin, setIsCheckingCoin] = useState<boolean>(false);
   const chainId = useChainId()
   const config = useConfig()
   const chain = config.chains.find((c) => c.id === chainId)
@@ -115,6 +118,7 @@ function App() {
         platformAddress: address as Address,
       },
     };
+    setCreateLoading(true);
     try {
       const res = await fetch('/api/create-data', {
         method: 'POST',
@@ -314,6 +318,38 @@ const handleLoadMoreZoraBalances = async () => {
       }
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const handleCheckCoin = async () => {
+    if (!coinCheckAddressInput.trim()) {
+      toast.error("Please enter a coin address to check.");
+      return;
+    }
+    setIsCheckingCoin(true);
+    setCoinCheckResult(null);
+    toast.loading("Checking coin...");
+    try {
+      // Ensure coinCheckAddressInput is a valid address, getCoin might do its own validation
+      const addressToPass = coinCheckAddressInput as Address; 
+      const response = await getCoin({
+        address: addressToPass,
+        chain: chainId, // Using the chainId from useChainId hook
+      });
+      toast.dismiss();
+      if (response) {
+        setCoinCheckResult(response.data?.zora20Token);
+        toast.success("Coin data fetched successfully!");
+      } else {
+        toast.error("Coin not found or error fetching data.");
+      }
+    } catch (err: any) {
+      console.error("Error checking coin:", err);
+      toast.dismiss();
+      toast.error(`Error checking coin: ${err.message || 'Unknown error'}`);
+      setCoinCheckResult(null);
+    } finally {
+      setIsCheckingCoin(false);
     }
   };
 
@@ -755,9 +791,68 @@ const handleLoadMoreZoraBalances = async () => {
             </div>
           </div>
         )}
-      
+      {isConnected && address && (
+          <div className="card bg-base-100 shadow-xl mb-6">
+            <div className="card-body">
+              <h2 className="card-title">Check coin</h2>
+              <div className="flex items-center">
+                <div className="flex items-center space-x-2">
+                  
+                  <input 
+                    type="text" 
+                    placeholder="Coin address" 
+                    className="input input-bordered w-full max-w-xs mr-2" 
+                    value={coinCheckAddressInput}
+                    onChange={(e) => setCoinCheckAddressInput(e.target.value)}
+                    disabled={isCheckingCoin}
+                  />
+                  <button 
+                    onClick={handleCheckCoin}
+                    className="btn btn-primary btn-sm"
+                    disabled={isCheckingCoin}
+                  >
+                    {isCheckingCoin ? <span className="loading loading-spinner loading-xs"></span> : 'Check'}
+                  </button>
+                </div>
+              </div>
+              {/* Display area for getCoin results */}
+              {coinCheckResult && (
+                <div className="mt-4 p-4 border border-base-300 rounded-lg bg-base-200/50">
+                  <h3 className="text-lg font-semibold mb-2">Coin Information</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><strong>Coin:</strong> {coinCheckResult.name} ({coinCheckResult.symbol})</p>
+                    <p><strong>Address:</strong> <span className="font-mono text-xs">{coinCheckResult.address}</span></p>
+                    <p><strong>Chain ID:</strong> {coinCheckResult.chainId === 84532 ? 'Base Sepolia' : coinCheckResult.chainId === 8453 ? 'Base' : coinCheckResult.chainId}</p>
+                    <p><strong>Total Supply:</strong> {coinCheckResult.totalSupply ? parseFloat(formatUnits(BigInt(coinCheckResult.totalSupply), coinCheckResult.decimals)).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Market Cap:</strong> {coinCheckResult.marketCap ? `$${parseFloat(coinCheckResult.marketCap).toLocaleString()}` : 'N/A'}</p>
+                    <p><strong>24h Volume:</strong> {coinCheckResult.volume24h ? `$${parseFloat(coinCheckResult.volume24h).toLocaleString()}` : 'N/A'}</p>
+                    <p><strong>Owner:</strong> <span className="font-mono text-xs">{coinCheckResult.creatorAddress ?? 'N/A'}</span></p>
+                    <p><strong>Created At:</strong> {coinCheckResult.createdAt ? new Date(coinCheckResult.createdAt).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Unique Holders:</strong> {coinCheckResult.uniqueHolders?.toLocaleString() ?? 'N/A'}</p>
+                    {coinCheckResult.mediaContent?.previewImage && (
+                      <div className="mt-2">
+                        <p><strong>Preview Image:</strong></p>
+                        <img 
+                          src={coinCheckResult.mediaContent.originalUri} 
+                          alt={`${coinCheckResult.name} preview`} 
+                          className="rounded-lg border border-base-300 max-w-xs h-auto mt-1"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'; 
+                            const errorText = document.createElement('p');
+                            errorText.textContent = 'Preview image failed to load.';
+                            (e.target as HTMLImageElement).parentNode?.appendChild(errorText);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-
+      
       {isModalOpen && (
         <div className="modal modal-open modal-bottom sm:modal-middle">
           <div className="modal-box relative">

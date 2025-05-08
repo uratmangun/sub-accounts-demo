@@ -30,7 +30,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy dependencies and build output
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+# COPY --from=builder /app/public ./public
 COPY --from=builder /app/.env* ./
 
 # No port exposed – accessed internally by Cloudflare tunnel
